@@ -24,7 +24,6 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
   // Контроллеры для формы отзыва
   final _nameController = TextEditingController();
   final _commentController = TextEditingController();
-  double _userRating = 4.0;
   
   @override
   void initState() {
@@ -60,76 +59,96 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
   }
   
   void _showAddReviewDialog() {
+    // Локальная переменная рейтинга для диалога
+    double userRating = 4.0;
+    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Avis sur ${widget.mocktail.name}'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Votre nom',
-                  border: OutlineInputBorder(),
-                ),
+      builder: (BuildContext dialogContext) => StatefulBuilder(
+        // StatefulBuilder позволяет обновлять состояние диалога
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: Text('Avis sur ${widget.mocktail.name}'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Votre nom',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Note:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  // Отображаем текущее значение рейтинга
+                  Text(
+                    '${userRating.toStringAsFixed(1)} / 5.0',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Slider(
+                    value: userRating,
+                    min: 1.0,
+                    max: 5.0,
+                    divisions: 8,
+                    label: userRating.toStringAsFixed(1),
+                    onChanged: (value) {
+                      // Используем setDialogState для обновления UI диалога
+                      setDialogState(() {
+                        userRating = value;
+                      });
+                    },
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      return Icon(
+                        Icons.star,
+                        color: index < userRating 
+                            ? Colors.amber 
+                            : Colors.grey,
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _commentController,
+                    decoration: const InputDecoration(
+                      labelText: 'Votre commentaire',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 3,
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Note:',
-                style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Annuler'),
               ),
-              Slider(
-                value: _userRating,
-                min: 1.0,
-                max: 5.0,
-                divisions: 8,
-                label: _userRating.toStringAsFixed(1),
-                onChanged: (value) {
-                  setState(() {
-                    _userRating = value;
-                  });
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _submitReview(userRating);
                 },
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) {
-                  return Icon(
-                    Icons.star,
-                    color: index < _userRating 
-                        ? Colors.amber 
-                        : Colors.grey,
-                  );
-                }),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _commentController,
-                decoration: const InputDecoration(
-                  labelText: 'Votre commentaire',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
+                child: const Text('Envoyer'),
               ),
             ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: () => _submitReview(),
-            child: const Text('Envoyer'),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
   
-  Future<void> _submitReview() async {
+  Future<void> _submitReview(double rating) async {
     if (_nameController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Veuillez entrer votre nom')),
@@ -144,12 +163,10 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
       return;
     }
     
-    Navigator.pop(context); // Close dialog
-    
     final success = await ApiService.addMocktailReview(
       mocktailId: widget.mocktail.name,
       userName: _nameController.text,
-      rating: _userRating,
+      rating: rating,
       comment: _commentController.text,
     );
     
@@ -159,7 +176,6 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
       );
       _nameController.clear();
       _commentController.clear();
-      _userRating = 4.0;
       _loadReviews(); // Reload reviews
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

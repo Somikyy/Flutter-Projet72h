@@ -4,8 +4,8 @@ import '../models/ingridient_level.dart';
 import '../models/review.dart';
 
 class ApiService {
-  // Замените на IP-адрес вашего Raspberry Pi или сервера
-  static const String baseUrl = 'http://192.168.1.27:5000';
+  // IP-адрес Raspberry Pi
+  static const String baseUrl = 'http://192.168.1.47:5001';
   
   // Health check для проверки доступности сервера
   static Future<bool> checkServerStatus() async {
@@ -92,8 +92,11 @@ class ApiService {
       ).timeout(const Duration(seconds: 5));
       
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body)['reviews'];
-        return data.map((json) => Review.fromJson(json)).toList();
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        if (responseData.containsKey('reviews') && responseData['reviews'] is List) {
+          final List<dynamic> data = responseData['reviews'];
+          return data.map((json) => Review.fromJson(json)).toList();
+        }
       }
       return [];
     } catch (e) {
@@ -118,7 +121,7 @@ class ApiService {
           'userName': userName,
           'rating': rating,
           'comment': comment,
-          'createdAt': DateTime.now().toIso8601String(),
+          'createdAt': DateTime.now().millisecondsSinceEpoch / 1000, // Преобразование в Unix timestamp
         }),
       ).timeout(const Duration(seconds: 10));
       
@@ -139,8 +142,11 @@ class ApiService {
       ).timeout(const Duration(seconds: 5));
       
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body)['ingredients'];
-        return data.map((json) => IngredientLevel.fromJson(json)).toList();
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        if (responseData.containsKey('ingredients') && responseData['ingredients'] is List) {
+          final List<dynamic> data = responseData['ingredients'];
+          return data.map((json) => IngredientLevel.fromJson(json)).toList();
+        }
       }
       return [];
     } catch (e) {
@@ -180,27 +186,25 @@ class ApiService {
     }
   }
 
-  // Добавьте этот метод в класс ApiService
-
-// Обновление уровня ингредиентов (для админ-панели)
-static Future<bool> updateIngredientLevels(Map<String, int> updatedLevels) async {
-  try {
-    final response = await http.post(
-      Uri.parse('$baseUrl/ingredients/update'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'updatedLevels': updatedLevels,
-      }),
-    ).timeout(const Duration(seconds: 10));
-    
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data['success'] == true;
+  // Обновление уровня ингредиентов (для админ-панели)
+  static Future<bool> updateIngredientLevels(Map<String, int> updatedLevels) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/ingredients/update'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'updatedLevels': updatedLevels,
+        }),
+      ).timeout(const Duration(seconds: 10));
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['success'] == true;
+      }
+      return false;
+    } catch (e) {
+      print('Error updating ingredient levels: $e');
+      return false;
     }
-    return false;
-  } catch (e) {
-    print('Error updating ingredient levels: $e');
-    return false;
   }
-}
 }
