@@ -2,10 +2,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/ingridient_level.dart';
 import '../models/review.dart';
+import '../models/mocktail.dart'; // Add this import
 
 class ApiService {
   // IP-адрес Raspberry Pi
-  static const String baseUrl = 'http://192.168.1.47:5001';
+  static const String baseUrl = 'http://172.20.10.4:5001';
   
   // Health check для проверки доступности сервера
   static Future<bool> checkServerStatus() async {
@@ -21,6 +22,27 @@ class ApiService {
     } catch (e) {
       print('Server connection error: $e');
       return false;
+    }
+  }
+  
+  // Add this new method to get all mocktails with their ratings
+  static Future<List<Mocktail>> getMocktails() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/mocktails'),
+      ).timeout(const Duration(seconds: 5));
+      
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        if (responseData.containsKey('mocktails') && responseData['mocktails'] is List) {
+          final List<dynamic> data = responseData['mocktails'];
+          return data.map((json) => Mocktail.fromJson(json)).toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      print('Error fetching mocktails: $e');
+      return [];
     }
   }
   

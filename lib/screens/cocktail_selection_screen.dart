@@ -7,7 +7,7 @@ import '../models/mocktail.dart';
 import '../services/api_service.dart';
 import 'glass_selection_screen.dart';
 import 'reviews_screen.dart';
-import 'admin_login_screen.dart'; // Новый импорт
+import 'admin_login_screen.dart';
 
 class CocktailSelectionScreen extends StatefulWidget {
   const CocktailSelectionScreen({super.key});
@@ -19,22 +19,64 @@ class CocktailSelectionScreen extends StatefulWidget {
 class _CocktailSelectionScreenState extends State<CocktailSelectionScreen> {
   bool _isCheckingIngredients = false;
   List<IngredientLevel> _lowIngredients = [];
+  List<Mocktail> _mocktails = [];
+  bool _isLoadingMocktails = true;
+  String _errorMessage = '';
   
   @override
   void initState() {
     super.initState();
     _checkLowIngredients();
+    _loadMocktails();
   }
   
   Future<void> _checkLowIngredients() async {
     try {
       final levels = await ApiService.getIngredientsLevels();
       
-      setState(() {
-        _lowIngredients = levels.where((ing) => ing.isLow).toList();
-      });
+      if (mounted) {
+        setState(() {
+          _lowIngredients = levels.where((ing) => ing.isLow).toList();
+        });
+      }
     } catch (e) {
       print('Erreur lors de la vérification des ingrédients: $e');
+    }
+  }
+  
+  Future<void> _loadMocktails() async {
+    try {
+      setState(() {
+        _isLoadingMocktails = true;
+        _errorMessage = '';
+      });
+      
+      // Try to get mocktails from the API first
+      final mocktails = await ApiService.getMocktails();
+      
+      if (mounted) {
+        if (mocktails.isNotEmpty) {
+          setState(() {
+            _mocktails = mocktails;
+            _isLoadingMocktails = false;
+          });
+        } else {
+          // Fallback to default mocktails if API returned empty
+          setState(() {
+            _mocktails = CocktailManager.mocktails;
+            _isLoadingMocktails = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        print('Erreur lors du chargement des mocktails: $e');
+        setState(() {
+          _mocktails = CocktailManager.mocktails;
+          _isLoadingMocktails = false;
+          _errorMessage = 'Impossible de charger les derniers ratings';
+        });
+      }
     }
   }
 
@@ -61,7 +103,14 @@ class _CocktailSelectionScreenState extends State<CocktailSelectionScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          // Кнопка доступа к админ-панели
+          // Refresh button for mocktails
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: _loadMocktails,
+            tooltip: 'Actualiser',
+          ),
+          
+          // Admin access button
           IconButton(
             icon: const Icon(Icons.admin_panel_settings, color: Colors.white),
             onPressed: () {
@@ -75,7 +124,7 @@ class _CocktailSelectionScreenState extends State<CocktailSelectionScreen> {
             tooltip: 'Panneau d\'administration',
           ),
           
-          // Кнопка просмотра уровня ингредиентов
+          // Ingredients level check button
           IconButton(
             icon: Stack(
               children: [
@@ -127,200 +176,219 @@ class _CocktailSelectionScreenState extends State<CocktailSelectionScreen> {
           ),
         ),
         child: SafeArea(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            itemCount: CocktailManager.mocktails.length,
-            itemBuilder: (context, index) {
-              final mocktail = CocktailManager.mocktails[index];
-              return Animate(
-                effects: [
-                  FadeEffect(delay: Duration(milliseconds: 100 * index)),
-                  SlideEffect(
-                    begin: const Offset(0.2, 0),
-                    end: Offset.zero,
-                    delay: Duration(milliseconds: 100 * index),
-                  ),
-                ],
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Card(
-                    elevation: 8,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
+          child: _isLoadingMocktails
+              ? const Center(child: CircularProgressIndicator(color: Colors.white))
+              : _errorMessage.isNotEmpty 
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _errorMessage,
+                        style: const TextStyle(color: Colors.white70),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildMocktailsList(),
+                    ],
+                  )
+                : _buildMocktailsList(),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildMocktailsList() {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      itemCount: _mocktails.length,
+      itemBuilder: (context, index) {
+        final mocktail = _mocktails[index];
+        return Animate(
+          effects: [
+            FadeEffect(delay: Duration(milliseconds: 100 * index)),
+            SlideEffect(
+              begin: const Offset(0.2, 0),
+              end: Offset.zero,
+              delay: Duration(milliseconds: 100 * index),
+            ),
+          ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Card(
+              elevation: 8,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              color: Colors.white.withOpacity(0.15),
+              child: Column(
+                children: [
+                  // Main cocktail info
+                  InkWell(
+                    onTap: () => _selectMocktail(mocktail),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(15),
+                      topRight: Radius.circular(15),
                     ),
-                    color: Colors.white.withOpacity(0.15),
-                    child: Column(
-                      children: [
-                        // Основная информация о коктейле
-                        InkWell(
-                          onTap: () => _selectMocktail(mocktail),
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(15),
-                            topRight: Radius.circular(15),
-                          ),
-                          child: Container(
-                            height: 160,
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      mocktail.name,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    
-                                    // Рейтинг коктейля
-                                    Row(
-                                      children: [
-                                        ...List.generate(5, (starIndex) {
-                                          return Icon(
-                                            Icons.star,
-                                            color: starIndex < mocktail.rating 
-                                                ? Colors.amber 
-                                                : Colors.white.withOpacity(0.2),
-                                            size: 16,
-                                          );
-                                        }),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          '(${mocktail.reviewCount})',
-                                          style: TextStyle(
-                                            color: Colors.white.withOpacity(0.7),
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
+                    child: Container(
+                      height: 160,
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                mocktail.name,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                const SizedBox(height: 8),
-                                Expanded(
-                                  child: Text(
-                                    mocktail.description,
+                              ),
+                              
+                              // Cocktail rating
+                              Row(
+                                children: [
+                                  ...List.generate(5, (starIndex) {
+                                    return Icon(
+                                      Icons.star,
+                                      color: starIndex < mocktail.rating 
+                                          ? Colors.amber 
+                                          : Colors.white.withOpacity(0.2),
+                                      size: 16,
+                                    );
+                                  }),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '(${mocktail.reviewCount})',
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.8),
-                                      fontSize: 16,
+                                      color: Colors.white.withOpacity(0.7),
+                                      fontSize: 12,
                                     ),
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 2,
                                   ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Expanded(
+                            child: Text(
+                              mocktail.description,
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.8),
+                                fontSize: 16,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 2,
+                            ),
+                          ),
+                          // Cocktail tags
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 40),
+                            child: Wrap(
+                              spacing: 8,
+                              children: mocktail.tags.map((tag) => Chip(
+                                label: Text(
+                                  tag,
+                                  style: const TextStyle(color: Colors.white),
                                 ),
-                                // Теги коктейля
-                                ConstrainedBox(
-                                  constraints: const BoxConstraints(maxHeight: 40),
-                                  child: Wrap(
-                                    spacing: 8,
-                                    children: mocktail.tags.map((tag) => Chip(
-                                      label: Text(
-                                        tag,
-                                        style: const TextStyle(color: Colors.white),
-                                      ),
-                                      backgroundColor: Colors.blue.withOpacity(0.3),
-                                    )).toList(),
+                                backgroundColor: Colors.blue.withOpacity(0.3),
+                              )).toList(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  // Divider
+                  Divider(
+                    color: Colors.white.withOpacity(0.1),
+                    height: 1,
+                  ),
+                  
+                  // Action buttons
+                  Row(
+                    children: [
+                      // Reviews button
+                      Expanded(
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ReviewsScreen(mocktail: mocktail),
+                              ),
+                            ).then((_) => _loadMocktails()); // Reload after review
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.rate_review,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Avis',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ],
                             ),
                           ),
                         ),
-                        
-                        // Разделитель
-                        Divider(
-                          color: Colors.white.withOpacity(0.1),
-                          height: 1,
-                        ),
-                        
-                        // Кнопки действий
-                        Row(
-                          children: [
-                            // Кнопка просмотра отзывов
-                            Expanded(
-                              child: InkWell(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => ReviewsScreen(mocktail: mocktail),
-                                    ),
-                                  );
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(
-                                        Icons.rate_review,
-                                        color: Colors.white,
-                                        size: 16,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      const Text(
-                                        'Avis',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
+                      ),
+                      
+                      // Vertical divider
+                      Container(
+                        height: 24,
+                        width: 1,
+                        color: Colors.white.withOpacity(0.1),
+                      ),
+                      
+                      // Select cocktail button
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => _selectMocktail(mocktail),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.local_bar,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Préparer',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
-                            
-                            // Вертикальный разделитель
-                            Container(
-                              height: 24,
-                              width: 1,
-                              color: Colors.white.withOpacity(0.1),
-                            ),
-                            
-                            // Кнопка выбора коктейля
-                            Expanded(
-                              child: InkWell(
-                                onTap: () => _selectMocktail(mocktail),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(
-                                        Icons.local_bar,
-                                        color: Colors.white,
-                                        size: 16,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      const Text(
-                                        'Préparer',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ),
-              );
-            },
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
   
@@ -330,7 +398,7 @@ class _CocktailSelectionScreenState extends State<CocktailSelectionScreen> {
     });
     
     try {
-      // Проверяем наличие ингредиентов перед переходом к выбору стакана
+      // Check ingredient availability before proceeding to glass selection
       final result = await ApiService.checkIngredientAvailability(mocktail.ingredients);
       
       setState(() {
@@ -338,7 +406,7 @@ class _CocktailSelectionScreenState extends State<CocktailSelectionScreen> {
       });
       
       if (result['available'] == true) {
-        // Переходим к выбору стакана
+        // Proceed to glass selection
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -346,7 +414,7 @@ class _CocktailSelectionScreenState extends State<CocktailSelectionScreen> {
           ),
         );
       } else {
-        // Показываем диалог с предупреждением о недостатке ингредиентов
+        // Show warning dialog about insufficient ingredients
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
@@ -404,7 +472,7 @@ class _CocktailSelectionScreenState extends State<CocktailSelectionScreen> {
         _isCheckingIngredients = false;
       });
       
-      // Просто переходим к выбору стакана, если не удалось проверить ингредиенты
+      // Just proceed to glass selection if we couldn't check ingredients
       Navigator.push(
         context,
         MaterialPageRoute(

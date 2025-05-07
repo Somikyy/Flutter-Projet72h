@@ -20,14 +20,16 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
   List<Review> _reviews = [];
   bool _isLoading = true;
   String _errorMessage = '';
+  late Mocktail _currentMocktail;
   
-  // Контроллеры для формы отзыва
+  // Controllers for review form
   final _nameController = TextEditingController();
   final _commentController = TextEditingController();
   
   @override
   void initState() {
     super.initState();
+    _currentMocktail = widget.mocktail; // Make a local copy
     _loadReviews();
   }
   
@@ -46,26 +48,40 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     
     try {
       final reviews = await ApiService.getMocktailReviews(widget.mocktail.name);
-      setState(() {
-        _reviews = reviews;
-        _isLoading = false;
-      });
+      
+      if (mounted) {
+        setState(() {
+          _reviews = reviews;
+          _isLoading = false;
+          
+          // Update local values for average rating and review count
+          if (reviews.isNotEmpty) {
+            final double avgRating = reviews.fold(0.0, (sum, review) => sum + review.rating) / reviews.length;
+            _currentMocktail = _currentMocktail.copyWith(
+              rating: avgRating,
+              reviewCount: reviews.length
+            );
+          }
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Impossible de charger les avis: $e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Impossible de charger les avis: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
   
   void _showAddReviewDialog() {
-    // Локальная переменная рейтинга для диалога
+    // Local rating variable for dialog
     double userRating = 4.0;
     
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) => StatefulBuilder(
-        // StatefulBuilder позволяет обновлять состояние диалога
+        // StatefulBuilder allows updating dialog state
         builder: (context, setDialogState) {
           return AlertDialog(
             title: Text('Avis sur ${widget.mocktail.name}'),
@@ -85,7 +101,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                     'Note:',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  // Отображаем текущее значение рейтинга
+                  // Display current rating value
                   Text(
                     '${userRating.toStringAsFixed(1)} / 5.0',
                     style: const TextStyle(
@@ -100,7 +116,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                     divisions: 8,
                     label: userRating.toStringAsFixed(1),
                     onChanged: (value) {
-                      // Используем setDialogState для обновления UI диалога
+                      // Use setDialogState to update dialog UI
                       setDialogState(() {
                         userRating = value;
                       });
@@ -163,6 +179,10 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
       return;
     }
     
+    setState(() {
+      _isLoading = true;
+    });
+    
     final success = await ApiService.addMocktailReview(
       mocktailId: widget.mocktail.name,
       userName: _nameController.text,
@@ -170,24 +190,30 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
       comment: _commentController.text,
     );
     
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Merci pour votre avis!')),
-      );
-      _nameController.clear();
-      _commentController.clear();
-      _loadReviews(); // Reload reviews
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Erreur lors de l\'envoi de l\'avis')),
-      );
+    if (mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Merci pour votre avis!')),
+        );
+        _nameController.clear();
+        _commentController.clear();
+        await _loadReviews(); // Reload reviews with updated rating
+        
+        // Set the result to indicate that the review was added
+        Navigator.pop(context, true);
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erreur lors de l\'envoi de l\'avis')),
+        );
+      }
     }
   }
   
   double get _averageRating {
-    if (_reviews.isEmpty) return 0;
-    final sum = _reviews.fold(0.0, (sum, review) => sum + review.rating);
-    return sum / _reviews.length;
+    return _currentMocktail.rating;
   }
 
   @override
@@ -197,7 +223,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
         title: Text('Avis - ${widget.mocktail.name}'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pop(context, _currentMocktail.rating != widget.mocktail.rating),
         ),
       ),
       body: Container(
@@ -242,7 +268,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              widget.mocktail.name,
+                              _currentMocktail.name,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 20,
@@ -250,7 +276,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                               ),
                             ),
                             Text(
-                              widget.mocktail.description,
+                              _currentMocktail.description,
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.7),
                                 fontSize: 14,
