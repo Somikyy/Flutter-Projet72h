@@ -40,39 +40,44 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     super.dispose();
   }
   
-  Future<void> _loadReviews() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
+Future<void> _loadReviews() async {
+  setState(() {
+    _isLoading = true;
+    _errorMessage = '';
+  });
+  
+  try {
+    print("Загрузка отзывов для коктейля: ${widget.mocktail.name}");
+    final reviews = await ApiService.getMocktailReviews(widget.mocktail.name);
     
-    try {
-      final reviews = await ApiService.getMocktailReviews(widget.mocktail.name);
-      
-      if (mounted) {
-        setState(() {
-          _reviews = reviews;
-          _isLoading = false;
-          
-          // Update local values for average rating and review count
-          if (reviews.isNotEmpty) {
-            final double avgRating = reviews.fold(0.0, (sum, review) => sum + review.rating) / reviews.length;
-            _currentMocktail = _currentMocktail.copyWith(
-              rating: avgRating,
-              reviewCount: reviews.length
-            );
-          }
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Impossible de charger les avis: $e';
-          _isLoading = false;
-        });
-      }
+    if (mounted) {
+      setState(() {
+        _reviews = reviews;
+        _isLoading = false;
+        
+        print("Загружено ${reviews.length} отзывов");
+        
+        // Обновляем локальные значения для среднего рейтинга и количества отзывов
+        if (reviews.isNotEmpty) {
+          final double avgRating = reviews.fold(0.0, (sum, review) => sum + review.rating) / reviews.length;
+          print("Рассчитанный средний рейтинг: $avgRating, количество отзывов: ${reviews.length}");
+          _currentMocktail = _currentMocktail.copyWith(
+            rating: avgRating,
+            reviewCount: reviews.length
+          );
+        }
+      });
+    }
+  } catch (e) {
+    print("Ошибка загрузки отзывов: $e");
+    if (mounted) {
+      setState(() {
+        _errorMessage = 'Невозможно загрузить отзывы: $e';
+        _isLoading = false;
+      });
     }
   }
+}
   
   void _showAddReviewDialog() {
     // Local rating variable for dialog

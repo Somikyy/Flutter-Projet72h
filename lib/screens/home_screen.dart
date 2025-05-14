@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
+import 'package:provider/provider.dart';
 import 'dart:math' as math;
 import 'cocktail_selection_screen.dart';
+import 'cocktail_preview.dart';
+import '../providers/seasonal_theme_provider.dart';
+import '../theme/app_theme.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -48,22 +52,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final Size screenSize = MediaQuery.of(context).size;
+    // Получаем провайдер темы
+    final themeProvider = Provider.of<SeasonalThemeProvider>(context);
     
     return Scaffold(
       body: Stack(
         children: [
           // Фон с градиентом
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF2E1437), Color(0xFF1A1A1A)],
+                colors: themeProvider.seasonalGradient,
               ),
             ),
           ),
           
-          // Анимированные пузырьки в отдельном виджете, чтобы обновлялись только они
+          // Сезонные украшения
+          themeProvider.buildSeasonalDecoration(),
+          
+          // Анимированные пузырьки в отдельном виджете
           AnimatedBubbles(
             bubbles: _bubbles,
             controller: _bubblesController,
@@ -86,35 +95,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.blue.withOpacity(0.2),
+                            color: themeProvider.seasonalAccentColor.withOpacity(0.2),
                             blurRadius: 15,
                             spreadRadius: 5,
                           ),
                         ],
                       ),
-                      child: const Column(
+                      child: Column(
                         children: [
                           Icon(
                             Icons.local_bar,
                             size: 60,
                             color: Colors.white,
                           ),
-                          SizedBox(height: 20),
+                          const SizedBox(height: 20),
                           Text(
                             'Mocktail\nMachine',
                             textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 48,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.blue,
-                                  blurRadius: 10,
-                                  offset: Offset(2, 2),
-                                ),
-                              ],
-                            ),
+                            style: AppTheme.titleStyle,
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            themeProvider.seasonalGreeting,
+                            textAlign: TextAlign.center,
+                            style: AppTheme.bodyStyle,
                           ),
                         ],
                       ),
@@ -123,7 +127,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   
                   const SizedBox(height: 40),
                   
-                  // Кнопка
+                  // Основная кнопка
                   FadeInUp(
                     duration: const Duration(milliseconds: 800),
                     child: Container(
@@ -131,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         borderRadius: BorderRadius.circular(30),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.blue.withOpacity(0.3),
+                            color: themeProvider.seasonalAccentColor.withOpacity(0.3),
                             blurRadius: 15,
                             spreadRadius: 5,
                           ),
@@ -146,6 +150,54 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ),
                           );
                         },
+                        style: AppTheme.primaryButtonStyle,
+                        child: const Text(
+                          'Choisir un Mocktail',
+                          style: TextStyle(
+                            fontSize: 20,
+                            color: Colors.white,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Добавляем демо-кнопку
+                  const SizedBox(height: 20),
+                  FadeInUp(
+                    duration: const Duration(milliseconds: 800),
+                    delay: const Duration(milliseconds: 200),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: themeProvider.seasonalAccentColor.withOpacity(0.3),
+                            blurRadius: 15,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => CocktailPreviewScreen(
+                                cocktailName: "Sunrise Rouge",
+                                cocktailDescription: "Un mocktail rafraîchissant aux fruits rouges avec des bulles",
+                                initialIngredients: {
+                                  'Jus de Cranberry': 70, 
+                                  'Sirop de Grenadine': 20, 
+                                  'Sprite': 60,
+                                  'Jus de Citron': 30,
+                                },
+                                tags: ['Fruité', 'Pétillant', 'Rouge'],
+                              ),
+                            ),
+                          );
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue.withOpacity(0.2),
                           padding: const EdgeInsets.symmetric(
@@ -157,7 +209,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           ),
                         ),
                         child: const Text(
-                          'Choisir un Mocktail',
+                          'Voir Démo 3D',
                           style: TextStyle(
                             fontSize: 20,
                             color: Colors.white,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:projet72h/screens/ingridients_level_widget.dart';
+import 'package:provider/provider.dart';
 import '../models/cocktail_manager.dart';
 import '../models/ingridient_level.dart';
 import '../models/mocktail.dart';
@@ -8,6 +9,8 @@ import '../services/api_service.dart';
 import 'glass_selection_screen.dart';
 import 'reviews_screen.dart';
 import 'admin_login_screen.dart';
+import '../providers/seasonal_theme_provider.dart';
+import '../theme/app_theme.dart';
 
 class CocktailSelectionScreen extends StatefulWidget {
   const CocktailSelectionScreen({super.key});
@@ -168,13 +171,13 @@ class _CocktailSelectionScreenState extends State<CocktailSelectionScreen> {
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF2E1437), Color(0xFF1A1A1A)],
-          ),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: Provider.of<SeasonalThemeProvider>(context).seasonalGradient,
         ),
+      ),
         child: SafeArea(
           child: _isLoadingMocktails
               ? const Center(child: CircularProgressIndicator(color: Colors.white))

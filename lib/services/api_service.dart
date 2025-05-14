@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/ingridient_level.dart';
 import '../models/review.dart';
-import '../models/mocktail.dart'; // Add this import
+import '../models/mocktail.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class ApiService {
   // IP-адрес Raspberry Pi
@@ -20,31 +22,38 @@ class ApiService {
       }
       return false;
     } catch (e) {
-      print('Server connection error: $e');
+      // print('Server connection error: $e');
       return false;
     }
   }
   
   // Add this new method to get all mocktails with their ratings
-  static Future<List<Mocktail>> getMocktails() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/mocktails'),
-      ).timeout(const Duration(seconds: 5));
-      
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = jsonDecode(response.body);
-        if (responseData.containsKey('mocktails') && responseData['mocktails'] is List) {
-          final List<dynamic> data = responseData['mocktails'];
-          return data.map((json) => Mocktail.fromJson(json)).toList();
-        }
+  // In api_service.dart - update the getMocktails method
+static Future<List<Mocktail>> getMocktails() async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/mocktails'),
+    ).timeout(const Duration(seconds: 5));
+    
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+      // print("API response: ${response.body}"); // Add this for debugging
+      if (responseData.containsKey('mocktails') && responseData['mocktails'] is List) {
+        final List<dynamic> data = responseData['mocktails'];
+        return data.map((json) {
+          // Make sure the JSON property names match what's coming from your API
+          final mocktail = Mocktail.fromJson(json);
+          // print("Loaded mocktail: ${mocktail.name}, rating: ${mocktail.rating}, reviewCount: ${mocktail.reviewCount}");
+          return mocktail;
+        }).toList();
       }
-      return [];
-    } catch (e) {
-      print('Error fetching mocktails: $e');
-      return [];
     }
+    return [];
+  } catch (e) {
+    // print('Error fetching mocktails: $e');
+    return [];
   }
+}
   
   // Отправка запроса на приготовление коктейля
   static Future<Map<String, dynamic>> prepareMocktail({
@@ -72,7 +81,7 @@ class ApiService {
         };
       }
     } catch (e) {
-      print('Error sending mocktail preparation request: $e');
+      // print('Error sending mocktail preparation request: $e');
       return {
         'success': false,
         'message': 'Connection error: $e',
@@ -96,7 +105,7 @@ class ApiService {
         };
       }
     } catch (e) {
-      print('Error checking order status: $e');
+      // print('Error checking order status: $e');
       return {
         'success': false,
         'message': 'Connection error: $e',
@@ -107,52 +116,91 @@ class ApiService {
   // --- МЕТОДЫ ДЛЯ РАБОТЫ С ОТЗЫВАМИ ---
   
   // Получение всех отзывов для конкретного коктейля
-  static Future<List<Review>> getMocktailReviews(String mocktailId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/reviews/$mocktailId'),
-      ).timeout(const Duration(seconds: 5));
+static Future<List<Review>> getMocktailReviews(String mocktailName) async {
+  try {
+    // print("===== REVIEW API DEBUG =====");
+    // print("Getting reviews for mocktail: $mocktailName");
+    
+    // Try to use the mocktail name directly as the ID in the API call
+    final response = await http.get(
+      Uri.parse('$baseUrl/reviews/$mocktailName'),
+    ).timeout(const Duration(seconds: 5));
+    
+    // print("API URL: $baseUrl/reviews/$mocktailName");
+    // print("Response status code: ${response.statusCode}");
+    // print("Response body: ${response.body}");
+    
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+      // print("Parsed response data: $responseData");
       
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = jsonDecode(response.body);
-        if (responseData.containsKey('reviews') && responseData['reviews'] is List) {
-          final List<dynamic> data = responseData['reviews'];
-          return data.map((json) => Review.fromJson(json)).toList();
+      if (responseData.containsKey('reviews') && responseData['reviews'] is List) {
+        final List<dynamic> data = responseData['reviews'];
+        // print("Found ${data.length} reviews in response");
+        
+        // // print each review for debugging
+        for (var review in data) {
+          // print("Review: $review");
         }
+        
+        return data.map((json) => Review.fromJson(json)).toList();
+      } else {
+        // print("Response does not contain 'reviews' list");
       }
-      return [];
-    } catch (e) {
-      print('Error fetching reviews: $e');
-      return [];
+    } else {
+      // print("API returned error status code: ${response.statusCode}");
     }
+    return [];
+  } catch (e) {
+    // print('Error fetching reviews: $e');
+    return [];
   }
+}
 
   // Добавление нового отзыва
-  static Future<bool> addMocktailReview({
-    required String mocktailId,
-    required String userName,
-    required double rating,
-    required String comment,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/reviews'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'mocktailId': mocktailId,
-          'userName': userName,
-          'rating': rating,
-          'comment': comment,
-          'createdAt': DateTime.now().millisecondsSinceEpoch / 1000, // Преобразование в Unix timestamp
-        }),
-      ).timeout(const Duration(seconds: 10));
-      
-      return response.statusCode == 200 || response.statusCode == 201;
-    } catch (e) {
-      print('Error adding review: $e');
-      return false;
+static Future<bool> addMocktailReview({
+  required String mocktailId,
+  required String userName,
+  required double rating,
+  required String comment,
+}) async {
+  try {
+    // print("===== ADD REVIEW DEBUG =====");
+    // print("Adding review for mocktail: $mocktailId");
+    
+    // Try to find the actual mocktail_id if we're given a name
+    final mocktails = await getMocktails();
+    String actualMocktailId = mocktailId;
+    
+    // Look for a matching mocktail and use its ID
+    for (var mocktail in mocktails) {
+      if (mocktail.name == mocktailId) {
+        actualMocktailId = mocktail.name.toLowerCase().replaceAll(' ', '_');
+        // print("Found matching mocktail, using ID: $actualMocktailId");
+        break;
+      }
     }
+    
+    final response = await http.post(
+      Uri.parse('$baseUrl/reviews'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'mocktailId': actualMocktailId,
+        'userName': userName,
+        'rating': rating,
+        'comment': comment,
+        'createdAt': DateTime.now().toIso8601String(),
+      }),
+    ).timeout(const Duration(seconds: 10));
+    
+    // print("API response: ${response.statusCode} - ${response.body}");
+    
+    return response.statusCode == 200 || response.statusCode == 201;
+  } catch (e) {
+    // print('Error adding review: $e');
+    return false;
   }
+}
 
   // --- МЕТОДЫ ДЛЯ РАБОТЫ С ИНГРЕДИЕНТАМИ ---
 
@@ -172,7 +220,7 @@ class ApiService {
       }
       return [];
     } catch (e) {
-      print('Error fetching ingredient levels: $e');
+      // print('Error fetching ingredient levels: $e');
       return [];
     }
   }
@@ -199,7 +247,7 @@ class ApiService {
         'missingIngredients': [],
       };
     } catch (e) {
-      print('Error checking ingredients: $e');
+      // print('Error checking ingredients: $e');
       return {
         'available': false,
         'message': 'Erreur de connexion au serveur',
@@ -225,8 +273,96 @@ class ApiService {
       }
       return false;
     } catch (e) {
-      print('Error updating ingredient levels: $e');
+      // print('Error updating ingredient levels: $e');
       return false;
     }
   }
+
+  static Future<Map<String, dynamic>> getOrders() async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/orders'),
+    ).timeout(const Duration(seconds: 10));
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      return {
+        'success': false,
+        'message': 'Erreur ${response.statusCode}',
+        'orders': [],
+      };
+    }
+  } catch (e) {
+    // print('Erreur lors de la récupération des commandes: $e');
+    return {
+      'success': false,
+      'message': 'Erreur de connexion: $e',
+      'orders': [],
+    };
+  }
+}
+
+static Future<bool> updateOrderStatus(String orderId, String newStatus) async {
+  try {
+    final response = await http.post(
+      Uri.parse('$baseUrl/order_status/update'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'orderId': orderId,
+        'status': newStatus,
+      }),
+    ).timeout(const Duration(seconds: 10));
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['success'] == true;
+    }
+    return false;
+  } catch (e) {
+    // // // print('Erreur lors de la mise à jour du statut: $e');
+    return false;
+  }
+}
+
+// Méthodes pour la gestion des avis
+static Future<bool> deleteReview(String mocktailId, String reviewId) async {
+  try {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/reviews/$reviewId'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'mocktailId': mocktailId,
+      }),
+    ).timeout(const Duration(seconds: 10));
+    
+    return response.statusCode == 200;
+  } catch (e) {
+    // print('Erreur lors de la suppression de l\'avis: $e');
+    return false;
+  }
+}
+
+static Future<bool> updateReview({
+  required String mocktailId,
+  required String reviewId,
+  required double rating,
+  required String comment,
+}) async {
+  try {
+    final response = await http.put(
+      Uri.parse('$baseUrl/reviews/$reviewId'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'mocktailId': mocktailId,
+        'rating': rating,
+        'comment': comment,
+      }),
+    ).timeout(const Duration(seconds: 10));
+    
+    return response.statusCode == 200;
+  } catch (e) {
+    return false;
+  }
+}
 }

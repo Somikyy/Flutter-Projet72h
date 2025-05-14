@@ -39,17 +39,17 @@ class Mocktail {
   }
   
   // Преобразование из JSON
-  factory Mocktail.fromJson(Map<String, dynamic> json) {
-    return Mocktail(
-      name: json['name'] ?? '',
-      description: json['description'] ?? '',
-      imageUrl: json['imageUrl'] ?? '',
-      ingredients: Map<String, int>.from(json['ingredients'] ?? {}),
-      tags: List<String>.from(json['tags'] ?? []),
-      rating: (json['rating'] ?? 0.0).toDouble(),
-      reviewCount: json['reviewCount'] ?? 0,
-    );
-  }
+factory Mocktail.fromJson(Map<String, dynamic> json) {
+  return Mocktail(
+    name: json['name'] ?? '',
+    description: json['description'] ?? '',
+    imageUrl: json['image_url'] ?? json['imageUrl'] ?? '',
+    ingredients: Map<String, int>.from(json['ingredients'] ?? {}),
+    tags: List<String>.from(json['tags'] ?? []),
+    rating: (json['rating'] ?? 0.0).toDouble(),
+    reviewCount: json['review_count'] ?? 0, // Убедись, что это соответствует имени поля в API
+  );
+}
   
   // Преобразование в JSON
   Map<String, dynamic> toJson() {

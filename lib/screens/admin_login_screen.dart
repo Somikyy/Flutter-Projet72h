@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'admin_panel_screen.dart';
+import 'admin_panel_screen.dart'; // Importer notre nouveau panneau d'administration amélioré
 
 class AdminLoginScreen extends StatefulWidget {
   const AdminLoginScreen({Key? key}) : super(key: key);
@@ -23,12 +23,12 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
   
   void _verifyPassword() {
     if (_passwordController.text == ADMIN_PASSWORD) {
-      // Сбрасываем ошибку, если она была
+      // Réinitialiser l'erreur, si elle était présente
       setState(() {
         _isPasswordWrong = false;
       });
       
-      // Переходим на экран админ-панели
+      // Naviguer vers l'écran du panneau d'administration amélioré
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -36,7 +36,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
         ),
       );
     } else {
-      // Показываем ошибку
+      // Afficher une erreur
       setState(() {
         _isPasswordWrong = true;
       });
@@ -75,7 +75,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Иконка замка
+                    // Icône cadenas
                     const Icon(
                       Icons.admin_panel_settings,
                       size: 64,
@@ -83,7 +83,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                     ),
                     const SizedBox(height: 24),
                     
-                    // Заголовок
+                    // Titre
                     const Text(
                       'Accès Administrateur',
                       style: TextStyle(
@@ -95,7 +95,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                     
                     const SizedBox(height: 16),
                     
-                    // Поле ввода пароля
+                    // Champ de saisie du mot de passe
                     TextField(
                       controller: _passwordController,
                       obscureText: _isPasswordHidden,
@@ -130,7 +130,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                     
                     const SizedBox(height: 24),
                     
-                    // Кнопка входа
+                    // Bouton de connexion
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
